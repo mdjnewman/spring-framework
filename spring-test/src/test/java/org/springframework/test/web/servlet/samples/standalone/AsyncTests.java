@@ -166,6 +166,16 @@ public class AsyncTests {
 				.andExpect(content().string("{\"name\":\"Joe\",\"someDouble\":0.0,\"someBoolean\":false}"));
 	}
 
+	@Test
+	public void completableFutureWithDelayedError() throws Exception {
+		MvcResult mvcResult = this.mockMvc.perform(get("/1").param("completableFutureWithDelayedError", "true"))
+				.andExpect(request().asyncStarted())
+				.andReturn();
+
+		this.mockMvc.perform(asyncDispatch(mvcResult))
+				.andExpect(status().is5xxServerError());
+	}
+
 	@Test  // SPR-12735
 	public void printAsyncResult() throws Exception {
 		StringWriter writer = new StringWriter();
@@ -271,6 +281,17 @@ public class AsyncTests {
 			CompletableFuture<Person> future = new CompletableFuture<>();
 			future.complete(new Person("Joe"));
 			return future;
+		}
+
+		@RequestMapping(params = "completableFutureWithDelayedError")
+		public CompletableFuture<Person> getCompletableFutureWithDelayedError() {
+			return CompletableFuture.supplyAsync(() -> {
+				try {
+					Thread.sleep(200);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				throw new RuntimeException(); });
 		}
 
 		@ExceptionHandler(Exception.class)
